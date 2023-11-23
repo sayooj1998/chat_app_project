@@ -1,4 +1,6 @@
+import 'package:chat_app_project/functions/clientUser.dart';
 import 'package:chat_app_project/screen/chatScreen.dart';
+import 'package:chat_app_project/screen/contact.dart';
 import 'package:chat_app_project/screen/login.dart';
 import 'package:chat_app_project/screen/registrationScreen.dart';
 import 'package:flutter/material.dart';
@@ -7,6 +9,7 @@ class drawerpage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Drawer(
+      width: 250,
       child: ListView(
         padding: const EdgeInsets.all(0),
         children: [
@@ -49,17 +52,25 @@ class drawerpage extends StatelessWidget {
                   MaterialPageRoute(builder: (context) => LoginScreen()));
             },
           ),
+          ListTile(
+            leading: const Icon(
+              Icons.logout,
+              color: Colors.blue,
+            ),
+            title: const Text('Log out'),
+            onTap: () {
+              logoutUser(context);
+            },
+          ),
           // ListTile(
-          //   leading: const Icon(
-          //     Icons.chat,
-          //     color: Colors.blue,
-          //   ),
-          //   title: const Text('chat'),
-          //   onTap: () {
-          //     Navigator.push(context,
-          //         MaterialPageRoute(builder: (context) => chatScreen()));
-          //   },
-          // ),
+          //     leading: Icon(Icons.contact_page),
+          //     title: Text('Contact'),
+          //     onTap: (() {
+          //       Navigator.push(
+          //           context,
+          //           MaterialPageRoute(
+          //               builder: (context) => ContactListScreen()));
+          //     }))
         ],
       ),
     );
