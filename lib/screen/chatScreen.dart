@@ -53,18 +53,6 @@ class _chatScreenState extends State<chatScreen> {
     fetchAndSetMessages();
   }
 
-  void dispose() {
-    // ignore: avoid_print
-    receivedMessages = [];
-    messages = [];
-    messageController = TextEditingController();
-    socket.disconnect();
-    messageContent = '';
-
-    print('Dispose used');
-    super.dispose();
-  }
-
   Future<void> fetchAndSetMessages() async {
     try {
       List<ChatMessage> fetchedMessages =
@@ -102,6 +90,7 @@ class _chatScreenState extends State<chatScreen> {
 
     socket.on('message', (data) {
       // Handle received messages
+      print(data);
       handleReceivedMessage(data);
     });
 
@@ -129,10 +118,9 @@ class _chatScreenState extends State<chatScreen> {
       'receiver': senderroomId,
       'currenttime': DateTime.now().toLocal().toString(),
     });
-    print(message);
 
     _scrollController.animateTo(
-      0.0,
+      _scrollController.position.maxScrollExtent,
       duration: Duration(milliseconds: 300),
       curve: Curves.easeOut,
     );
@@ -143,15 +131,17 @@ class _chatScreenState extends State<chatScreen> {
 // {f_rid: 68843, msg: chh, t_rid: 30899, name: sayooj }
     try {
       setState(() {
-        messages.add(
-          ChatMessage(
-            message: data['msg'],
-            messageFrom: data['f_rid'],
-            messageTo: data['t_rid'],
-            time: DateTime.now().toString(),
-            id: receivedMessages.length + 1,
-          ),
+        ChatMessage receivedMessage = ChatMessage(
+          message: data['msg'],
+          messageFrom: data['f_rid'],
+          messageTo: data['t_rid'],
+          time: DateTime.now().toString(),
+          id: receivedMessages.length + 1,
         );
+
+        messages.add(receivedMessage);
+        receivedMessages.add(receivedMessage);
+
         senderroom_id = data['receiver'];
         room_id = data['sender'];
       });
@@ -159,6 +149,18 @@ class _chatScreenState extends State<chatScreen> {
       print('Error handling received message: $e');
       print(e);
     }
+  }
+
+  void dispose() {
+    // ignore: avoid_print
+    receivedMessages = [];
+    messages = [];
+    messageController = TextEditingController();
+    socket.disconnect();
+    messageContent = '';
+
+    print('Dispose used');
+    super.dispose();
   }
 
   @override
@@ -189,61 +191,62 @@ class _chatScreenState extends State<chatScreen> {
           Expanded(
             flex: 8,
             child: Container(
-              color: Colors.white,
-              child: Center(
-                child: ListView.separated(
-                  controller: _scrollController,
-                  itemCount: receivedMessages.length + messages.length,
-                  separatorBuilder: (context, index) => Container(),
-                  itemBuilder: (context, index) {
-                    if (index < messages.length) {
-                      // Display messages sent by the user
-                      final sentMessage = messages[index];
-                      return ChatBubble(
-                        clipper: ChatBubbleClipper1(
-                          type: BubbleType.sendBubble,
-                        ),
-                        margin: const EdgeInsets.only(top: 20),
-                        alignment: Alignment.bottomLeft,
-                        backGroundColor:
-                            const Color.fromARGB(255, 223, 197, 117),
-                        child: Container(
-                          constraints: BoxConstraints(
-                            maxWidth: MediaQuery.of(context).size.width * 0.7,
+                color: Colors.white,
+                child: Center(
+                  child: ListView.separated(
+                    controller: _scrollController,
+                    itemCount: receivedMessages.length + messages.length,
+                    separatorBuilder: (context, index) => Container(),
+                    itemBuilder: (context, index) {
+                      if (index < receivedMessages.length) {
+                        // Display received messages
+                        final receivedMessage = receivedMessages[index];
+                        bool isSender =
+                            widget.room_Id == receivedMessage.messageTo;
+                        return ChatBubble(
+                          clipper: ChatBubbleClipper1(
+                            type: isSender
+                                ? BubbleType.sendBubble
+                                : BubbleType.receiverBubble,
                           ),
-                          child: SelectableText(sentMessage.message ?? ''),
-                        ),
-                      );
-                    } else {
-                      // Display received messages
-                      final receivedMessage =
-                          receivedMessages[index - messages.length];
-                      bool isSender =
-                          widget.room_Id == receivedMessage.messageTo;
-                      return ChatBubble(
-                        clipper: ChatBubbleClipper1(
-                          type: isSender
-                              ? BubbleType.sendBubble
-                              : BubbleType.receiverBubble,
-                        ),
-                        margin: const EdgeInsets.only(top: 20),
-                        alignment:
-                            isSender ? Alignment.topRight : Alignment.topLeft,
-                        backGroundColor: isSender
-                            ? const Color.fromARGB(255, 223, 197, 117)
-                            : const Color.fromARGB(255, 101, 172, 231),
-                        child: Container(
-                          constraints: BoxConstraints(
-                            maxWidth: MediaQuery.of(context).size.width * 0.7,
+                          margin: const EdgeInsets.only(top: 20),
+                          alignment:
+                              isSender ? Alignment.topRight : Alignment.topLeft,
+                          backGroundColor: isSender
+                              ? const Color.fromARGB(255, 223, 197, 117)
+                              : const Color.fromARGB(255, 101, 172, 231),
+                          child: Container(
+                            constraints: BoxConstraints(
+                              maxWidth: MediaQuery.of(context).size.width * 0.7,
+                            ),
+                            child: SelectableText(receivedMessage.message!),
                           ),
-                          child: SelectableText(receivedMessage.message!),
-                        ),
-                      );
-                    }
-                  },
-                ),
-              ),
-            ),
+                        );
+                      }
+
+                      //else {
+                      //   // Display messages sent by the user
+                      //   final sentMessage =
+                      //       messages[index - receivedMessages.length];
+                      //   return ChatBubble(
+                      //     clipper: ChatBubbleClipper1(
+                      //       type: BubbleType.receiverBubble,
+                      //     ),
+                      //     margin: const EdgeInsets.only(top: 20),
+                      //     alignment: Alignment.bottomLeft,
+                      //     backGroundColor:
+                      //         const Color.fromARGB(255, 223, 197, 117),
+                      //     child: Container(
+                      //       constraints: BoxConstraints(
+                      //         maxWidth: MediaQuery.of(context).size.width * 0.7,
+                      //       ),
+                      //       child: SelectableText(sentMessage.message ?? ''),
+                      //     ),
+                      //   );
+                      // }
+                    },
+                  ),
+                )),
           ),
           Container(
             padding: EdgeInsets.all(8),
