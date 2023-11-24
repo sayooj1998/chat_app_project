@@ -42,7 +42,7 @@ class _chatScreenState extends State<chatScreen> {
   late IO.Socket socket;
   var room_id;
   ScrollController _scrollController = ScrollController();
-
+  bool isLoading = false;
   @override
   void initState() {
     super.initState();
@@ -55,18 +55,26 @@ class _chatScreenState extends State<chatScreen> {
 
   Future<void> fetchAndSetMessages() async {
     try {
+      setState(() {
+        isLoading = true; // Show circular progress indicator
+      });
+
       List<ChatMessage> fetchedMessages =
           await fetchMessages(loginId, chatPersonId);
       fetchedMessages.sort((a, b) => a.time!.compareTo(b.time!));
+
       setState(() {
         receivedMessages = fetchedMessages;
+        isLoading = false; // Hide circular progress indicator
       });
     } catch (error) {
       print('Error fetching messages: $error');
       // Handle the error appropriately, e.g., show an error message to the user
+      setState(() {
+        isLoading = false; // Hide circular progress indicator on error
+      });
     }
   }
-
 //get room id from sharedpreferences....................
 
   Future<String> getroom() async {
@@ -87,10 +95,11 @@ class _chatScreenState extends State<chatScreen> {
     socket.on('connect', (_) {
       print('Connected to the socket');
     });
-
+    socket.connect();
     socket.on('message', (data) {
-      // Handle received messages
+      print('....................');
       print(data);
+
       handleReceivedMessage(data);
     });
 
@@ -101,8 +110,6 @@ class _chatScreenState extends State<chatScreen> {
     socket.on('error', (error) {
       print('Socket error: $error');
     });
-
-    socket.connect();
   }
 
   // message sent ....................................
@@ -121,13 +128,14 @@ class _chatScreenState extends State<chatScreen> {
 
     _scrollController.animateTo(
       _scrollController.position.maxScrollExtent,
-      duration: Duration(milliseconds: 300),
+      duration: const Duration(milliseconds: 300),
       curve: Curves.easeOut,
     );
   }
 
   void handleReceivedMessage(dynamic data) {
-    print(data);
+    print('get data from socket');
+    //print(data);
 // {f_rid: 68843, msg: chh, t_rid: 30899, name: sayooj }
     try {
       setState(() {
@@ -136,14 +144,14 @@ class _chatScreenState extends State<chatScreen> {
           messageFrom: data['f_rid'],
           messageTo: data['t_rid'],
           time: DateTime.now().toString(),
-          id: receivedMessages.length + 1,
+          id: null,
         );
 
-        messages.add(receivedMessage);
+        //messages.add(receivedMessage);
         receivedMessages.add(receivedMessage);
 
-        senderroom_id = data['receiver'];
-        room_id = data['sender'];
+        // senderroom_id = data['receiver'];
+        // room_id = data['sender'];
       });
     } catch (e) {
       print('Error handling received message: $e');
@@ -153,7 +161,7 @@ class _chatScreenState extends State<chatScreen> {
 
   void dispose() {
     // ignore: avoid_print
-    receivedMessages = [];
+    //receivedMessages = [];
     messages = [];
     messageController = TextEditingController();
     socket.disconnect();
@@ -193,59 +201,41 @@ class _chatScreenState extends State<chatScreen> {
             child: Container(
                 color: Colors.white,
                 child: Center(
-                  child: ListView.separated(
-                    controller: _scrollController,
-                    itemCount: receivedMessages.length + messages.length,
-                    separatorBuilder: (context, index) => Container(),
-                    itemBuilder: (context, index) {
-                      if (index < receivedMessages.length) {
-                        // Display received messages
-                        final receivedMessage = receivedMessages[index];
-                        bool isSender =
-                            widget.room_Id == receivedMessage.messageTo;
-                        return ChatBubble(
-                          clipper: ChatBubbleClipper1(
-                            type: isSender
-                                ? BubbleType.sendBubble
-                                : BubbleType.receiverBubble,
-                          ),
-                          margin: const EdgeInsets.only(top: 20),
-                          alignment:
-                              isSender ? Alignment.topRight : Alignment.topLeft,
-                          backGroundColor: isSender
-                              ? const Color.fromARGB(255, 223, 197, 117)
-                              : const Color.fromARGB(255, 101, 172, 231),
-                          child: Container(
-                            constraints: BoxConstraints(
-                              maxWidth: MediaQuery.of(context).size.width * 0.7,
-                            ),
-                            child: SelectableText(receivedMessage.message!),
-                          ),
-                        );
-                      }
+                  child: isLoading
+                      ? CircularProgressIndicator()
+                      : ListView.separated(
+                          controller: _scrollController,
+                          itemCount: receivedMessages.length,
+                          separatorBuilder: (context, index) => Container(),
+                          itemBuilder: (context, index) {
+                            // Display received messages
 
-                      //else {
-                      //   // Display messages sent by the user
-                      //   final sentMessage =
-                      //       messages[index - receivedMessages.length];
-                      //   return ChatBubble(
-                      //     clipper: ChatBubbleClipper1(
-                      //       type: BubbleType.receiverBubble,
-                      //     ),
-                      //     margin: const EdgeInsets.only(top: 20),
-                      //     alignment: Alignment.bottomLeft,
-                      //     backGroundColor:
-                      //         const Color.fromARGB(255, 223, 197, 117),
-                      //     child: Container(
-                      //       constraints: BoxConstraints(
-                      //         maxWidth: MediaQuery.of(context).size.width * 0.7,
-                      //       ),
-                      //       child: SelectableText(sentMessage.message ?? ''),
-                      //     ),
-                      //   );
-                      // }
-                    },
-                  ),
+                            final Message = receivedMessages[index];
+                            bool isSender = widget.room_Id == Message.messageTo;
+
+                            return ChatBubble(
+                              clipper: ChatBubbleClipper1(
+                                type: isSender
+                                    ? BubbleType.sendBubble
+                                    : BubbleType.receiverBubble,
+                              ),
+                              margin: const EdgeInsets.only(top: 20),
+                              alignment: isSender
+                                  ? Alignment.topRight
+                                  : Alignment.topLeft,
+                              backGroundColor: isSender
+                                  ? const Color.fromARGB(255, 223, 197, 117)
+                                  : const Color.fromARGB(255, 101, 172, 231),
+                              child: Container(
+                                constraints: BoxConstraints(
+                                  maxWidth:
+                                      MediaQuery.of(context).size.width * 0.7,
+                                ),
+                                child: SelectableText(Message.message!),
+                              ),
+                            );
+                          },
+                        ),
                 )),
           ),
           Container(
